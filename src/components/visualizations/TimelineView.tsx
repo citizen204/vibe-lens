@@ -14,6 +14,7 @@ interface StackLayer {
   gradient: string
   border: string
   dot: string
+  textColor: string
 }
 
 const LAYERS: StackLayer[] = [
@@ -25,6 +26,7 @@ const LAYERS: StackLayer[] = [
     gradient: 'from-cyan-950/80 to-slate-950',
     border: 'border-cyan-500/25',
     dot: 'bg-cyan-400',
+    textColor: 'text-cyan-400',
   },
   {
     id: 'data',
@@ -34,6 +36,7 @@ const LAYERS: StackLayer[] = [
     gradient: 'from-emerald-950/80 to-slate-950',
     border: 'border-emerald-500/25',
     dot: 'bg-emerald-400',
+    textColor: 'text-emerald-400',
   },
   {
     id: 'core',
@@ -43,6 +46,7 @@ const LAYERS: StackLayer[] = [
     gradient: 'from-violet-950/80 to-slate-950',
     border: 'border-violet-500/25',
     dot: 'bg-violet-400',
+    textColor: 'text-violet-400',
   },
   {
     id: 'framework',
@@ -52,6 +56,7 @@ const LAYERS: StackLayer[] = [
     gradient: 'from-blue-950/80 to-slate-950',
     border: 'border-blue-500/25',
     dot: 'bg-blue-400',
+    textColor: 'text-blue-400',
   },
   {
     id: 'tooling',
@@ -61,6 +66,7 @@ const LAYERS: StackLayer[] = [
     gradient: 'from-amber-950/80 to-slate-950',
     border: 'border-amber-500/25',
     dot: 'bg-amber-400',
+    textColor: 'text-amber-400',
   },
   {
     id: 'ui',
@@ -70,6 +76,7 @@ const LAYERS: StackLayer[] = [
     gradient: 'from-pink-950/80 to-slate-950',
     border: 'border-pink-500/25',
     dot: 'bg-pink-400',
+    textColor: 'text-pink-400',
   },
 ]
 
@@ -106,7 +113,7 @@ export default function TimelineView({ result, className = '' }: VisualizationPr
             return (
               <div
                 key={layer.id}
-                className={`relative overflow-hidden rounded-xl border ${layer.border} bg-gradient-to-r ${layer.gradient} p-4 pl-16 transition-all duration-300 hover:brightness-110`}
+                className={`layer-enter relative overflow-hidden rounded-xl border ${layer.border} bg-gradient-to-r ${layer.gradient} p-4 pl-16 transition-all duration-300 hover:brightness-110`}
                 style={{ animationDelay: `${layerIdx * 80}ms` }}
               >
                 {/* Timeline dot */}
@@ -146,7 +153,7 @@ export default function TimelineView({ result, className = '' }: VisualizationPr
                   {/* Confidence average */}
                   <div className="shrink-0 text-right">
                     <p className="text-[10px] text-slate-500">avg.</p>
-                    <p className={`text-sm font-bold ${layer.dot.replace('bg-', 'text-')}`}>
+                    <p className={`text-sm font-bold ${layer.textColor}`}>
                       {Math.round(layerTech.reduce((s, t) => s + t.confidence, 0) / layerTech.length)}%
                     </p>
                   </div>

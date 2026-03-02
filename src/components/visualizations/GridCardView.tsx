@@ -12,7 +12,7 @@
  *  - 悬浮 Glow：每类别对应的霓虹色 box-shadow + border
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import type { VisualizationProps, TechItem } from '@/types'
 import { CATEGORY_PALETTE } from '@/lib/tech-detector'
 
@@ -216,6 +216,12 @@ export default function GridCardView({ result, className = '' }: VisualizationPr
     return () => clearTimeout(t)
   }, [result])
 
+  const CARD_LIMIT = 8
+  const [showAll, setShowAll] = useState(false)
+  const toggleShowAll = useCallback(() => setShowAll(v => !v), [])
+  const visibleStack = showAll ? techStack : techStack.slice(0, CARD_LIMIT)
+  const overflow = techStack.length - CARD_LIMIT
+
   return (
     <div className={`w-full space-y-6 ${className}`}>
 
@@ -287,9 +293,27 @@ export default function GridCardView({ result, className = '' }: VisualizationPr
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/8 to-transparent" />
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {techStack.slice(0, 8).map((tech, i) => (
+          {visibleStack.map((tech, i) => (
             <TechCard key={tech.name} tech={tech} index={i} mounted={mounted} />
           ))}
+          {!showAll && overflow > 0 && (
+            <button
+              onClick={toggleShowAll}
+              className="card-enter flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-white/12 bg-white/3 p-4 text-center transition-all hover:border-white/25 hover:bg-white/6"
+              style={{ animationDelay: `${CARD_LIMIT * 55}ms` }}
+            >
+              <span className="text-xl font-bold text-slate-400">+{overflow}</span>
+              <span className="text-[10px] text-slate-600">展开全部</span>
+            </button>
+          )}
+          {showAll && overflow > 0 && (
+            <button
+              onClick={toggleShowAll}
+              className="col-span-full mt-1 rounded-xl border border-white/8 bg-white/3 py-2 text-[11px] text-slate-500 transition-all hover:border-white/15 hover:text-slate-300"
+            >
+              收起
+            </button>
+          )}
         </div>
       </section>
 

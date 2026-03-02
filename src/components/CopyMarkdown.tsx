@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import type { AnalysisResult } from '@/types'
 import { generateMarkdown } from '@/lib/markdown-generator'
 
@@ -12,7 +12,7 @@ export default function CopyMarkdown({ result }: CopyMarkdownProps) {
   const [copied, setCopied] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
 
-  const markdown = generateMarkdown(result)
+  const markdown = useMemo(() => generateMarkdown(result), [result])
 
   const handleCopy = useCallback(async () => {
     try {

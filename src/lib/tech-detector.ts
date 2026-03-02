@@ -175,7 +175,7 @@ const TECH_RULES: DetectionRule[] = [
     category: 'framework',
     icon: '💿',
     color: 'blue',
-    filePatterns: [/remix\.config\.(js|ts)$/, /vite\.config\.(js|ts)$/],
+    filePatterns: [/remix\.config\.(js|ts)$/],
     dirPatterns: [/^app$/, /^routes$/],
     baseConfidence: 85,
   },
@@ -343,13 +343,29 @@ const TECH_RULES: DetectionRule[] = [
     baseConfidence: 98,
   },
   {
-    name: 'Turbopack',
+    name: 'Turborepo',
     category: 'tooling',
-    icon: '🚀',
+    icon: '🏎',
     color: 'red',
     filePatterns: [/turbo\.json$/],
     dirPatterns: [/^packages$/],
     baseConfidence: 90,
+  },
+  {
+    name: 'Bun',
+    category: 'tooling',
+    icon: '🥟',
+    color: 'yellow',
+    filePatterns: [/bun\.lockb$/],
+    baseConfidence: 98,
+  },
+  {
+    name: 'pnpm',
+    category: 'tooling',
+    icon: '📦',
+    color: 'orange',
+    filePatterns: [/pnpm-lock\.yaml$/, /pnpm-workspace\.yaml$/],
+    baseConfidence: 98,
   },
   {
     name: 'ESLint',
@@ -430,6 +446,43 @@ const TECH_RULES: DetectionRule[] = [
     baseConfidence: 98,
   },
 
+  // ── API / Documentation ────────────────────────────────────────────────────
+  {
+    name: 'tRPC',
+    category: 'framework',
+    icon: '🔗',
+    color: 'blue',
+    filePatterns: [/trpc/],
+    dirPatterns: [/^trpc$/],
+    baseConfidence: 85,
+  },
+  {
+    name: 'Hono',
+    category: 'framework',
+    icon: '🔥',
+    color: 'orange',
+    filePatterns: [/hono/],
+    dirPatterns: [/^hono$/],
+    baseConfidence: 80,
+  },
+  {
+    name: 'OpenAPI',
+    category: 'tooling',
+    icon: '📄',
+    color: 'green',
+    filePatterns: [/openapi\.(yaml|yml|json)$/, /swagger\.(yaml|yml|json)$/],
+    baseConfidence: 95,
+  },
+  {
+    name: 'Storybook',
+    category: 'tooling',
+    icon: '📖',
+    color: 'pink',
+    filePatterns: [/\.stories\.(tsx?|jsx?|mdx)$/],
+    dirPatterns: [/^\.storybook$/],
+    baseConfidence: 95,
+  },
+
   // ── State Management ──────────────────────────────────────────────────────
   {
     name: 'Zustand',
@@ -480,19 +533,17 @@ export function detectTechStack(
   allDirs: TreeNode[],
 ): TechItem[] {
   const results: TechItem[] = []
-  const filePaths = allFiles.map(f => f.path.toLowerCase())
-  const dirNames = allDirs.map(d => d.name.toLowerCase())
   const extensions = new Set(allFiles.map(f => f.ext).filter(Boolean) as string[])
 
   for (const rule of TECH_RULES) {
     const detectedFrom: string[] = []
     let confidence = 0
 
-    // Check file patterns
+    // Check file patterns (case-insensitive path matching)
     if (rule.filePatterns) {
       for (const pattern of rule.filePatterns) {
         const matched = allFiles
-          .filter(f => pattern.test(f.path))
+          .filter(f => pattern.test(f.path.toLowerCase()))
           .map(f => f.path)
         if (matched.length > 0) {
           detectedFrom.push(...matched.slice(0, 3))
@@ -501,11 +552,11 @@ export function detectTechStack(
       }
     }
 
-    // Check dir patterns
+    // Check dir patterns (case-insensitive name matching)
     if (rule.dirPatterns) {
       for (const pattern of rule.dirPatterns) {
         const matched = allDirs
-          .filter(d => pattern.test(d.name))
+          .filter(d => pattern.test(d.name.toLowerCase()))
           .map(d => d.path)
         if (matched.length > 0) {
           detectedFrom.push(...matched.slice(0, 2))

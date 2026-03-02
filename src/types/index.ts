@@ -65,6 +65,8 @@ export interface AnalysisResult {
   features: Feature[]
   rawTree: string
   analyzedAt: Date
+  /** Optional warning message (e.g. GitHub API truncated large repos) */
+  warning?: string
 }
 
 // ─── Visualization Modes ──────────────────────────────────────────────────────
@@ -84,7 +86,6 @@ export interface TreeNode {
   type: 'file' | 'dir'
   ext?: string
   depth: number
-  children?: TreeNode[]
 }
 
 export interface ParsedTree {

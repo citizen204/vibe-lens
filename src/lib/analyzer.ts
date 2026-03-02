@@ -8,6 +8,23 @@ import type {
 } from '@/types'
 import { detectTechStack } from './tech-detector'
 
+// ─── GitHub API Types ─────────────────────────────────────────────────────────
+
+interface GitHubTreeItem {
+  path: string
+  type: 'blob' | 'tree'
+  sha: string
+  size?: number
+  url: string
+}
+
+interface GitHubTreeResponse {
+  sha: string
+  url: string
+  tree: GitHubTreeItem[]
+  truncated: boolean
+}
+
 // ─── Tree Parser ──────────────────────────────────────────────────────────────
 // Supports formats from: `tree`, `find`, GitHub file browser copy-paste, etc.
 // e.g.:
@@ -19,23 +36,51 @@ import { detectTechStack } from './tech-detector'
 
 const TREE_CHARS = /^[│├└─\s]*/
 
+// Files that have no extension but must be treated as files (not dirs)
+const NO_EXT_FILES = new Set([
+  'Dockerfile', 'Makefile', 'Gemfile', 'Rakefile', 'Procfile',
+  'artisan', 'Brewfile', 'Pipfile', 'Taskfile', 'Justfile',
+  'CHANGELOG', 'LICENSE', 'README', 'AUTHORS', 'CONTRIBUTING',
+  'Cargo.lock', 'bun.lockb', 'yarn.lock',
+])
+
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b)
+}
+
+/**
+ * Detect the indentation unit (chars per depth level) from raw tree lines.
+ * Standard `tree` output uses 4-char units; space-indented trees may use 2.
+ */
+function detectIndentUnit(lines: string[]): number {
+  const lengths: number[] = []
+  for (const line of lines) {
+    if (!line.trim()) continue
+    const prefix = line.match(TREE_CHARS)?.[0] ?? ''
+    const len = prefix.replace(/[├└│─]/g, ' ').length
+    if (len > 0) lengths.push(len)
+  }
+  if (lengths.length === 0) return 4
+  const unit = lengths.reduce(gcd)
+  return unit > 0 ? unit : 4
+}
+
 /**
  * Strip tree-drawing characters and leading whitespace from a line,
  * returning the actual file/dir name and its depth level.
  */
-function parseLine(line: string): { name: string; depth: number } | null {
+function parseLine(line: string, indentUnit: number): { name: string; depth: number; endsWithSlash: boolean } | null {
   if (!line.trim()) return null
 
+  const endsWithSlash = line.trimEnd().endsWith('/')
   // Remove tree chars to get clean name
   const cleaned = line.replace(TREE_CHARS, '').replace(/\/$/, '').trim()
   if (!cleaned || cleaned.startsWith('#')) return null
 
-  // Depth = number of "steps" into the tree; each step is 4 chars (│   or ├── )
   const prefix = line.match(TREE_CHARS)?.[0] ?? ''
-  // Count indent units: each "│   " or "    " is 4 chars
-  const depth = Math.floor(prefix.replace(/[├└─]/g, ' ').length / 4)
+  const depth = Math.floor(prefix.replace(/[├└─]/g, ' ').length / indentUnit)
 
-  return { name: cleaned, depth }
+  return { name: cleaned, depth, endsWithSlash }
 }
 
 export function parseTree(raw: string): ParsedTree {
@@ -43,6 +88,10 @@ export function parseTree(raw: string): ParsedTree {
   const allFiles: TreeNode[] = []
   const allDirs: TreeNode[] = []
   const filesByExt: Record<string, TreeNode[]> = {}
+
+  // Dynamically detect the indent unit so non-standard indentation (e.g. 2-space)
+  // is handled correctly instead of hardcoding 4.
+  const indentUnit = detectIndentUnit(lines.slice(1))
 
   // Stack tracks current path at each depth level
   const pathStack: string[] = []
@@ -58,25 +107,31 @@ export function parseTree(raw: string): ParsedTree {
   allDirs.push(root)
 
   for (let i = 1; i < lines.length; i++) {
-    const parsed = parseLine(lines[i])
+    const parsed = parseLine(lines[i], indentUnit)
     if (!parsed) continue
 
-    const { name, depth } = parsed
-    const isDir = lines[i].trimEnd().endsWith('/') || name.includes('.')
-      ? false
-      : !name.includes('.')
+    const { name, depth, endsWithSlash } = parsed
+
+    // Determine node type robustly:
+    //  1. Trailing slash  → directory (most reliable signal from `tree` output)
+    //  2. Has a dot       → file (has extension, or is a dotfile like .gitignore)
+    //  3. Known no-ext file (Dockerfile, Makefile, …) → file
+    //  4. Fallback        → directory (bare names like `src`, `components`)
+    const type: 'file' | 'dir' = endsWithSlash
+      ? 'dir'
+      : name.includes('.')
+        ? 'file'
+        : NO_EXT_FILES.has(name) ? 'file' : 'dir'
 
     // Trim the stack to current depth
     pathStack.length = depth
     pathStack[depth - 1] = name
     const fullPath = [rootName, ...pathStack.filter(Boolean)].join('/')
 
+    // For dotfiles like .gitignore: ext = '.gitignore'; for .env: ext = '.env'
     const ext = name.includes('.')
       ? '.' + name.split('.').pop()!.toLowerCase()
       : undefined
-
-    // Heuristic: if name has no extension and doesn't look like a file, treat as dir
-    const type = isDir || (!ext && !name.includes('.')) ? 'dir' : 'file'
 
     const node: TreeNode = { name, path: fullPath, type, ext, depth }
 
@@ -299,7 +354,7 @@ const FEATURE_RULES: FeatureRule[] = [
     importance: 7,
     signals: {
       dirs: ['locales', 'i18n', 'translations', 'lang'],
-      files: [/i18n/, /locale/, /\.json$/, /translation/],
+      files: [/i18n/, /locale/, /(i18n|locale|lang|translation).*\.json$/, /translation/],
       exts: ['.po', '.pot'],
     },
   },
@@ -528,5 +583,93 @@ export function analyzeProject(rawTree: string): AnalysisResult {
     features,
     rawTree,
     analyzedAt: new Date(),
+  }
+}
+
+// ─── GitHub URL Entry Point ───────────────────────────────────────────────────
+
+function parseGitHubUrl(input: string): { owner: string; repo: string } | null {
+  const cleaned = input.trim().replace(/\.git$/, '').replace(/\/$/, '')
+  const match = cleaned.match(
+    /(?:https?:\/\/)?(?:github\.com\/)?([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)/,
+  )
+  if (!match) return null
+  return { owner: match[1], repo: match[2] }
+}
+
+async function fetchGitHubApiTree(
+  owner: string,
+  repo: string,
+  signal?: AbortSignal,
+): Promise<{ tree: ParsedTree; truncated: boolean }> {
+  const response = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`,
+    { headers: { Accept: 'application/vnd.github.v3+json' }, signal },
+  )
+
+  if (!response.ok) {
+    if (response.status === 403) throw new Error('GitHub API 请求频率超限（60次/小时），请稍后重试')
+    if (response.status === 404) throw new Error('仓库不存在或为私有仓库，请确认 URL 是否正确')
+    throw new Error(`GitHub API 错误：${response.status}`)
+  }
+
+  const data: GitHubTreeResponse = await response.json()
+
+  const allFiles: TreeNode[] = []
+  const allDirs: TreeNode[] = []
+  const filesByExt: Record<string, TreeNode[]> = {}
+
+  const root: TreeNode = { name: repo, path: repo, type: 'dir', depth: 0 }
+  allDirs.push(root)
+
+  for (const item of data.tree) {
+    const parts = item.path.split('/')
+    const name = parts[parts.length - 1]
+    const depth = parts.length
+    const fullPath = `${repo}/${item.path}`
+    const ext = name.includes('.') ? '.' + name.split('.').pop()!.toLowerCase() : undefined
+
+    if (item.type === 'tree') {
+      allDirs.push({ name, path: fullPath, type: 'dir', depth })
+    } else {
+      const node: TreeNode = { name, path: fullPath, type: 'file', ext, depth }
+      allFiles.push(node)
+      if (ext) {
+        filesByExt[ext] = filesByExt[ext] ?? []
+        filesByExt[ext].push(node)
+      }
+    }
+  }
+
+  return { tree: { root, allFiles, allDirs, filesByExt }, truncated: data.truncated }
+}
+
+export async function analyzeFromGitHubUrl(input: string, signal?: AbortSignal): Promise<AnalysisResult> {
+  const parsed = parseGitHubUrl(input)
+  if (!parsed) {
+    throw new Error('无效的仓库地址，支持格式：https://github.com/owner/repo 或 owner/repo')
+  }
+
+  const { owner, repo } = parsed
+  const { tree, truncated } = await fetchGitHubApiTree(owner, repo, signal)
+
+  const techStack = detectTechStack(tree.allFiles, tree.allDirs)
+  const architectureHighlights = analyzeArchitecture(tree)
+  const features = extractFeatures(tree)
+  const complexity = estimateComplexity(tree)
+  const projectType = classifyProjectType(tree, techStack.map(t => t.name))
+
+  return {
+    projectName: repo,
+    projectType,
+    complexity,
+    techStack,
+    architectureHighlights,
+    features,
+    rawTree: `${owner}/${repo}`,
+    analyzedAt: new Date(),
+    warning: truncated
+      ? `该仓库文件数超过 GitHub API 限制（10万），返回的文件树不完整，分析结果可能不完整。`
+      : undefined,
   }
 }

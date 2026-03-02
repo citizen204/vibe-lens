@@ -57,6 +57,17 @@ textarea { caret-color: #a78bfa; }
   animation: card-enter 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+/* ── TimelineView layer 入场动画 ────────────────────────────────────────────── */
+
+@keyframes layer-in {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.layer-enter {
+  opacity: 0;
+  animation: layer-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 /**
  * bar-shimmer — 进度条填满后的一次性白色扫光
  * 使用 translateX 移动，保留外层 overflow:hidden 做裁剪
@@ -67,4 +78,14 @@ textarea { caret-color: #a78bfa; }
   20%  { opacity: 1; }
   80%  { opacity: .9; }
   100% { transform: translateX(320%)  skewX(-12deg); opacity: 0; }
+}
+
+/* ── 无障碍：减少动效 ──────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
