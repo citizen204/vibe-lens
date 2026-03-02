@@ -378,13 +378,13 @@ SVG 原生动画，5 层渲染：<br/>
 
 ### 在线使用
 
-直接访问 → **[vibe-lens.vercel.app](https://vibe-lens.vercel.app)** *(部署后填入)*
+直接访问 → **[vibe-lens-zeta.vercel.app](https://vibe-lens-zeta.vercel.app)** **
 
 ### 本地运行
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/your-org/vibe-lens.git
+git clone https://github.com/citizen204/vibe-lens.git
 cd vibe-lens
 
 # 2. 安装依赖
@@ -634,7 +634,7 @@ vibe-lens/
 
 ---
 
-<sub>Powered by <a href="https://github.com/your-org/vibe-lens">Vibe-Lens</a> · 2026-03-02</sub>
+<sub>Powered by <a href="https://github.com/citizen204/vibe-lens">Vibe-Lens</a> · 2026-03-02</sub>
 
 ---
 
@@ -755,11 +755,11 @@ git push origin feat/your-feature
 
 ---
 
-**Made with 🔬 by [your-name](https://github.com/your-name)**
+**Made with 🔬 by [citizen204](https://github.com/citizen204)**
 
-[![Star on GitHub](https://img.shields.io/github/stars/your-org/vibe-lens?style=social)](https://github.com/your-org/vibe-lens)
+[![Star on GitHub](https://img.shields.io/github/stars/citizen204/vibe-lens?style=social)](https://github.com/citizen204/vibe-lens)
 &nbsp;
-[![Follow](https://img.shields.io/github/followers/your-name?style=social)](https://github.com/your-name)
+[![Follow](https://img.shields.io/github/followers/citizen204?style=social)](https://github.com/citizen204)
 
 <br/>
 
